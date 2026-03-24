@@ -133,6 +133,29 @@ class FeedManager:
         tasks = [self.mark_entry_as_read(entry) for entry in entries]
         await asyncio.gather(*tasks)
 
+    async def get_feed_filter(self, feed_url: str) -> Optional[str]:
+        """Returns the stored title-filter regex for a feed, or None if not set."""
+        return await self.executor.run(
+            lambda: self.rss_reader.get_tag(feed_url, "discord.filter_regex", None),
+            default=None,
+        )
+
+    async def set_feed_filter(self, feed_url: str, pattern: str) -> None:
+        """Stores a title-filter regex for a feed."""
+        await self.executor.run(
+            lambda: self.rss_reader.set_tag(
+                feed_url, "discord.filter_regex", pattern
+            )
+        )
+
+    async def clear_feed_filter(self, feed_url: str) -> None:
+        """Removes the title-filter regex for a feed."""
+        await self.executor.run(
+            lambda: self.rss_reader.delete_tag(
+                feed_url, "discord.filter_regex", missing_ok=True
+            )
+        )
+
     async def cleanup_removed_feeds(self, config_feeds: Set[str]) -> None:
         """Removes feeds from the reader that are not in the provided configuration."""
         existing_feeds = await self.get_existing_feeds()
@@ -190,6 +213,18 @@ class RSSReader:
     async def mark_entries_as_read(self, entries: List[Entry]) -> None:
         """Marks specified entries as read."""
         await self.feed_manager.mark_entries_as_read(entries)
+
+    async def get_feed_filter(self, feed_url: str) -> Optional[str]:
+        """Returns the title-filter regex for a feed, or None."""
+        return await self.feed_manager.get_feed_filter(feed_url)
+
+    async def set_feed_filter(self, feed_url: str, pattern: str) -> None:
+        """Stores a title-filter regex for a feed."""
+        await self.feed_manager.set_feed_filter(feed_url, pattern)
+
+    async def clear_feed_filter(self, feed_url: str) -> None:
+        """Removes the title-filter regex for a feed."""
+        await self.feed_manager.clear_feed_filter(feed_url)
 
     async def setup(self) -> None:
         """
